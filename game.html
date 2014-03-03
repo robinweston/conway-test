@@ -3,11 +3,11 @@
 	<style>
 		table#board{width:100%;}
 		
-		td{width:10%; background-color:red; }
+		td{width:1%; background-color:lightgray; }
 		
-		td.alive{background-color:green;}
+		td.alive{background-color:black;}
 		
-		tr{height:100px;}
+		tr{height:10px;}
 		
 		
 	</style>
@@ -25,31 +25,105 @@
     <script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
 	<script src="js/knockout.js"></script>
 	<script>
-		var gridSize = 10;
+		var gridSize = 100;
 		
 	     var ViewModel = {
 			cells : []
 		 };
-		 
+
 		 function Cell(x, y, alive)
 		 {
-			this.x = x;
-			this.y = y;
-			this.alive = ko.observable(alive);
-			this.neighbours = [];
+			var self = this;
+
+			self.x = x;
+			self.y = y;
+			self.alive = ko.observable(alive);
+			self.neighbours = [];
+			self.willBeAlive = self.alive();
+
+			self.findNeighbours = function findNeighbours() {
+				[[-1, -1],[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]].forEach(function(diffs)
+				{
+					var neighbourX = self.x + diffs[0];
+					var neighbourY = self.y + diffs[1];
+
+					//console.log('Neighbour X: ' + neighbourX + ', ' + 'Neighbour Y: ' + neighbourY);
+
+					var neighbourExists = neighbourX >=0 && neighbourX < gridSize && neighbourY >= 0 && neighbourY < gridSize;
+
+					if(neighbourExists) {
+						self.neighbours.push(ViewModel.cells[neighbourX][neighbourY]);
+					}
+				});
+
+				//console.log('Cell ' + x + ', ' + y + ' has ' + self.neighbours.length + ' neighbours');
+			}
+
+			self.getAliveNeighboursCount = function getAliveNeighboursCount() {
+				var aliveCount = 0;
+				self.neighbours.forEach(function(neighbour){
+					if(neighbour.alive()){
+						aliveCount++;
+					}
+				});
+				return aliveCount;
+			}
 		 }
-		 
+
 		for(var i=0, l=gridSize; i<l; i++){
 			var row = [];
 			ViewModel.cells.push(row);
 		    for(var j=0, k=gridSize; j<k; j++){
-				row.push(new Cell(i, j, false));
+		    	var cellStartsAlive = Math.random() > 0.7;
+				row.push(new Cell(i, j, cellStartsAlive));
 			 }
 		}
-		
-		ViewModel.cells[5][4].alive(true);
-		
+
+		function forAllCells(cellFunc){
+			for(var i=0, l=gridSize; i<l; i++){
+			    for(var j=0, k=gridSize; j<k; j++){
+					var cell = ViewModel.cells[i][j];
+					cellFunc(cell);					
+				 }
+			}
+		}
+
+		forAllCells(function(cell){
+			cell.findNeighbours();
+		})
+
+		function processIteration()
+		{
+			forAllCells(function(cell){
+				var aliveNeighbours = cell.getAliveNeighboursCount();
+				
+				if(cell.alive() && aliveNeighbours < 2)
+				{
+					cell.willBeAlive = false;
+				}
+				else if(cell.alive() && aliveNeighbours >= 2 && aliveNeighbours <=3)
+				{
+					cell.willBeAlive = true;
+				}
+				else if(cell.alive() && aliveNeighbours > 3)
+				{
+					cell.willBeAlive = false;
+				} else if(cell.alive() === false && aliveNeighbours == 3)
+				{
+					cell.willBeAlive = true;
+				} else {
+					cell.willBeAlive = cell.alive();
+				}
+			});
+
+			forAllCells(function(cell){
+				cell.alive(cell.willBeAlive);
+			});
+		}		
+
 		ko.applyBindings(ViewModel);
+
+		setInterval(processIteration, 500);
 	</script>
 </body>
 
